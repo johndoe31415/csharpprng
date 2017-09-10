@@ -21,33 +21,11 @@
 #	Johannes Bauer <JohannesBauer@gmx.de>
 
 import sys
-import struct
-from CSharpPRNG import CSharpPRNG
 
-class ArcticFoxDeobfuscator(object):
-	def __init__(self, filename):
-		with open(filename, "rb") as f:
-			seed_bytes = bytes(seedbyte ^ 0x17 for seedbyte in f.read(4))
-			(seed, ) = struct.unpack("<i", seed_bytes)
-			prng = CSharpPRNG(seed)
-			xordata = prng.next_bytes(9)
-			obfuscated_data = f.read()
-			self._deobfuscated_data = bytes(obfuscated_byte ^ xordata[i % 9] for (i, obfuscated_byte) in enumerate(obfuscated_data))
+with open(sys.argv[1], "rb") as f:
+	data = f.read()[4:]
 
-	@property
-	def deobfuscated_data(self):
-		return self._deobfuscated_data
+xor_pattern = bytes(byte ^ plaintext for (byte, plaintext) in zip(data[0 : 9], bytes.fromhex("ef bb bf") + b"<Seria"))
+deobfuscated_data = bytes(byte ^ xor_pattern[i % 9] for (i, byte) in enumerate(data))
+print(deobfuscated_data[3:].decode())
 
-	@property
-	def is_valid(self):
-		return self._deobfuscated_data[0 : 3] == bytes.fromhex("ef bb bf")
-
-	@property
-	def xml_text(self):
-		return self._deobfuscated_data[3:].decode()
-
-deobfuscator = ArcticFoxDeobfuscator(sys.argv[1])
-if deobfuscator.is_valid:
-	print(deobfuscator.xml_text)
-else:
-	print("Cannot deobfuscate file.")
